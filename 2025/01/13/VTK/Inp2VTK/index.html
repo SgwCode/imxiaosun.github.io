@@ -1,0 +1,203 @@
+<!DOCTYPE html><html lang="en" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>VTK 技术总结 番外篇 （三）Inp2VTK based on C3D8R | Hexo</title><meta name="author" content="John Doe"><meta name="copyright" content="John Doe"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="INP和VTK 文件其实当我们了解了一些基本的VTK 文件格式，例如如何编写含有unstructured grid信息的.vtk文件，之后，我们就可以自己根据构思来去设计一些体素模型。然而，对于复杂模型来说，或者含有大量几何信息的模型来说，凭脑子来一点点的设计和堆积一个个CELL到我们的文件数据集中，肯定是不可能的。毕竟人脑能够构思框架和使用，但是机脑才是那个负责重复劳动的东西。 对于熟悉ABAQ">
+<meta property="og:type" content="article">
+<meta property="og:title" content="VTK 技术总结 番外篇 （三）Inp2VTK based on C3D8R">
+<meta property="og:url" content="https://imxiaosun.com/2025/01/13/VTK/Inp2VTK/index.html">
+<meta property="og:site_name" content="Hexo">
+<meta property="og:description" content="INP和VTK 文件其实当我们了解了一些基本的VTK 文件格式，例如如何编写含有unstructured grid信息的.vtk文件，之后，我们就可以自己根据构思来去设计一些体素模型。然而，对于复杂模型来说，或者含有大量几何信息的模型来说，凭脑子来一点点的设计和堆积一个个CELL到我们的文件数据集中，肯定是不可能的。毕竟人脑能够构思框架和使用，但是机脑才是那个负责重复劳动的东西。 对于熟悉ABAQ">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://s2.loli.net/2022/01/22/XqdJmbz8e1IEOk9.png">
+<meta property="article:published_time" content="2025-01-13T10:19:58.150Z">
+<meta property="article:modified_time" content="2025-01-13T10:19:06.177Z">
+<meta property="article:author" content="John Doe">
+<meta property="article:tag" content="Python">
+<meta property="article:tag" content="VTK">
+<meta property="article:tag" content="Abaqus">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://s2.loli.net/2022/01/22/XqdJmbz8e1IEOk9.png"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "VTK 技术总结 番外篇 （三）Inp2VTK based on C3D8R",
+  "url": "https://imxiaosun.com/2025/01/13/VTK/Inp2VTK/",
+  "image": "https://s2.loli.net/2022/01/22/XqdJmbz8e1IEOk9.png",
+  "datePublished": "2025-01-13T10:19:58.150Z",
+  "dateModified": "2025-01-13T10:19:06.177Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "John Doe",
+      "url": "https://imxiaosun.com/"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon.png"><link rel="canonical" href="https://imxiaosun.com/2025/01/13/VTK/Inp2VTK/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="stylesheet" href="/css/index.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!false && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          theme === 'dark' ? activateDarkMode() : theme === 'light' ? activateLightMode() : null
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":false,"highlightFullpage":false,"highlightMacStyle":false},
+  copy: {
+    success: 'Copy Successful',
+    error: 'Copy Failed',
+    noSupport: 'Browser Not Supported'
+  },
+  relativeDate: {
+    homepage: false,
+    post: false
+  },
+  runtime: '',
+  dateSuffix: {
+    just: 'Just now',
+    min: 'minutes ago',
+    hour: 'hours ago',
+    day: 'days ago',
+    month: 'months ago'
+  },
+  copyright: undefined,
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid/dist/infinitegrid.min.js',
+    buttonText: 'Load More'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: false,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: false,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'VTK 技术总结 番外篇 （三）Inp2VTK based on C3D8R',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><meta name="generator" content="Hexo 7.3.0"></head><body><div class="post" id="body-wrap"><header class="post-bg" id="page-header" style="background-image: url(https://s2.loli.net/2022/01/23/9GU5r7yk1XNO8Bd.png);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">Hexo</span></a><a class="nav-page-title" href="/"><span class="site-name">VTK 技术总结 番外篇 （三）Inp2VTK based on C3D8R</span></a></span><div id="menus"></div></nav><div id="post-info"><h1 class="post-title">VTK 技术总结 番外篇 （三）Inp2VTK based on C3D8R</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">Created</span><time class="post-meta-date-created" datetime="2025-01-13T10:19:58.150Z" title="Created 2025-01-13 10:19:58">2025-01-13</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">Updated</span><time class="post-meta-date-updated" datetime="2025-01-13T10:19:06.177Z" title="Updated 2025-01-13 10:19:06">2025-01-13</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/Modelling/">Modelling</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">Post Views:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><h2 id="INP和VTK-文件"><a href="#INP和VTK-文件" class="headerlink" title="INP和VTK 文件"></a>INP和VTK 文件</h2><p>其实当我们了解了一些基本的VTK 文件格式，例如如何编写含有<code>unstructured grid</code>信息的<code>.vtk</code>文件，之后，我们就可以自己根据构思来去设计一些体素模型。然而，对于复杂模型来说，或者含有大量几何信息的模型来说，凭脑子来一点点的设计和堆积一个个<code>CELL</code>到我们的文件数据集中，肯定是不可能的。毕竟人脑能够构思框架和使用，但是机脑才是那个负责重复劳动的东西。</p>
+<p>对于熟悉ABAQUS有限元的人来说，<code>INP</code>文件是最常接触的文件，它里面涵盖了有限元分析所需求的各种模型信息以及边界条件。ABAQUS的后处理功能虽然能够提供我们必要的一些信息，但是如果我们想了解有限元分析结果的数据结构，判断其结果准确性等等，我们就需要一些更强大的图形展示窗口，比如PARAVIEW。而且，我们还能更方便的基于从ABAQUS 中获得的结果文件，做进一步的分析，比如，Multiscale modelling 多尺度分析。但是在这里就不深入讲解了。</p>
+<p>综上，INP文件转化为VTK文件，然后显示到PARAVIEW，或者我们自己编写的基于VTK 的图形窗口中，就显得很必要了。</p>
+<h3 id="INP-文件格式"><a href="#INP-文件格式" class="headerlink" title="INP 文件格式"></a>INP 文件格式</h3><p>VTK 文件格式在之前的文章中已经介绍了，但是还没有介绍过INP文件格式，所以在这里简单说一下吧。</p>
+<h2 id="INP2VTK"><a href="#INP2VTK" class="headerlink" title="INP2VTK"></a>INP2VTK</h2><p>当前我只测试了C3D8R的文件格式。因为它所含有的网格节点排列顺序和 构建VTK中的<code>UNSTRUCTURED GRID</code>的顺序是一样的。在VTK 文件中的<code>CELL TYPE</code>是选择了 12 （VTK_HEXAHEDRON）。因为它能够体现不同的网格形态（更能适应不同的ASPECT RATIO）。</p>
+<h3 id="代码"><a href="#代码" class="headerlink" title="代码"></a>代码</h3><p>首先我们需要分别读取 INP 和写入 VTK 文件，所以这里定义了两个 <code>FUNCTION</code></p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">read_inp</span>(<span class="params">self, inp_path, result_path</span>):</span><br><span class="line">    lnum_node = <span class="number">0</span>  <span class="comment"># Node number start</span></span><br><span class="line">    lnum_element = <span class="number">0</span>  <span class="comment"># Node number end</span></span><br><span class="line">    lnum_element_end = <span class="number">0</span>  <span class="comment"># Element number end</span></span><br><span class="line">    node_dic = &#123;&#125;  <span class="comment"># Node dictionary: node number and coordinate</span></span><br><span class="line">    ele_dic = &#123;&#125;  <span class="comment"># Node dictionary: node number and coordinate</span></span><br><span class="line"></span><br><span class="line">    inp_file = <span class="built_in">open</span>(inp_path)</span><br><span class="line">    inp_lines = inp_file.readlines()</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> result_path:</span><br><span class="line">        result_file = <span class="built_in">open</span>(result_path)</span><br><span class="line">        result_lines = result_file.readlines()</span><br><span class="line"></span><br><span class="line">    <span class="comment"># Node information</span></span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(<span class="built_in">len</span>(inp_lines)):</span><br><span class="line">        <span class="keyword">if</span> inp_lines[i] == <span class="string">&#x27;*Node\n&#x27;</span>:</span><br><span class="line">            lnum_node = i + <span class="number">1</span></span><br><span class="line">            <span class="built_in">print</span>(<span class="string">&#x27;Current line number of *Node: &#x27;</span>, lnum_node)</span><br><span class="line">        <span class="keyword">if</span> inp_lines[i] == <span class="string">&#x27;*Element, type=C3D8R\n&#x27;</span>:</span><br><span class="line">            lnum_element = i + <span class="number">1</span></span><br><span class="line">            <span class="built_in">print</span>(<span class="string">&#x27;Current line number of *Element: &#x27;</span>, lnum_element)</span><br><span class="line">        <span class="keyword">if</span> inp_lines[i] == <span class="string">&#x27;*End Part\n&#x27;</span>:</span><br><span class="line">            lnum_element_end = i + <span class="number">1</span></span><br><span class="line">            <span class="built_in">print</span>(<span class="string">&#x27;Current line number of *End Part: &#x27;</span>, lnum_element_end)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># Element information</span></span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(lnum_node, lnum_element-<span class="number">1</span>):</span><br><span class="line">        current_line = inp_lines[i]</span><br><span class="line">        current_line = current_line.replace(<span class="string">&#x27; &#x27;</span>, <span class="string">&#x27;&#x27;</span>).replace(<span class="string">&#x27;\n&#x27;</span>, <span class="string">&#x27;&#x27;</span>).split(<span class="string">&#x27;,&#x27;</span>)</span><br><span class="line">        current_coord = []</span><br><span class="line">        <span class="keyword">for</span> j <span class="keyword">in</span> <span class="built_in">range</span>(<span class="built_in">len</span>(current_line)):</span><br><span class="line">            current_coord.append(<span class="built_in">float</span>(current_line[j]))</span><br><span class="line">        node_dic[current_line[<span class="number">0</span>]] = current_coord[<span class="number">1</span>:]</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(lnum_element, lnum_element_end-<span class="number">1</span>):</span><br><span class="line">        current_line = inp_lines[i]</span><br><span class="line">        current_line = current_line.replace(<span class="string">&#x27; &#x27;</span>, <span class="string">&#x27;&#x27;</span>).replace(<span class="string">&#x27;\n&#x27;</span>, <span class="string">&#x27;&#x27;</span>).split(<span class="string">&#x27;,&#x27;</span>)</span><br><span class="line">        current_node_group = []</span><br><span class="line">        <span class="keyword">for</span> j <span class="keyword">in</span> <span class="built_in">range</span>(<span class="built_in">len</span>(current_line)):</span><br><span class="line">            current_node_group.append(<span class="built_in">int</span>(current_line[j]))</span><br><span class="line">        ele_dic[i - lnum_element + <span class="number">1</span>] = current_node_group[<span class="number">1</span>:]</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> node_dic, ele_dic</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">save_vtk</span>(<span class="params">self, vtk_path, node_dic, element_dic</span>):</span><br><span class="line">    vtk_file = <span class="built_in">open</span>(vtk_path, <span class="string">&#x27;a&#x27;</span>)</span><br><span class="line">    vtk_file.write(<span class="string">&#x27;# vtk DataFile Version 2.0\n&#x27;</span>)</span><br><span class="line">    vtk_file.write(<span class="string">&#x27;Unstructured Grid - &#x27;</span> + vtk_path.strip(<span class="string">&#x27;.vtk&#x27;</span>) + <span class="string">&#x27;\n&#x27;</span>)</span><br><span class="line">    vtk_file.write(<span class="string">&#x27;ASCII\n&#x27;</span>)</span><br><span class="line">    vtk_file.write(<span class="string">&#x27;\n&#x27;</span>)</span><br><span class="line">    vtk_file.write(<span class="string">&#x27;DATASET UNSTRUCTURED_GRID\n&#x27;</span>)</span><br><span class="line">    vtk_file.write(<span class="string">&#x27;POINTS &#x27;</span> + <span class="built_in">str</span>(<span class="built_in">len</span>(node_dic)) + <span class="string">&#x27; float\n&#x27;</span>)</span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(<span class="built_in">len</span>(node_dic)):</span><br><span class="line">    current_value = node_dic[<span class="built_in">str</span>(i + <span class="number">1</span>)]</span><br><span class="line">    <span class="comment"># print(current_value)</span></span><br><span class="line">    <span class="comment"># print(type(current_value))</span></span><br><span class="line">    <span class="keyword">for</span> j <span class="keyword">in</span> <span class="built_in">range</span>(<span class="built_in">len</span>(current_value)):</span><br><span class="line">    vtk_file.write(<span class="built_in">str</span>(current_value[j])+<span class="string">&#x27; &#x27;</span>)</span><br><span class="line">    <span class="keyword">if</span> j == <span class="built_in">len</span>(current_value) - <span class="number">1</span>:</span><br><span class="line">    vtk_file.write(<span class="string">&#x27;\n&#x27;</span>)</span><br><span class="line"></span><br><span class="line">    vtk_file.write(<span class="string">&#x27;\n&#x27;</span>)</span><br><span class="line">    vtk_file.write(<span class="string">&#x27;CELLS &#x27;</span> + <span class="built_in">str</span>(<span class="built_in">len</span>(element_dic)) + <span class="string">&#x27; &#x27;</span> + <span class="built_in">str</span>(<span class="number">9</span>*<span class="built_in">len</span>(element_dic)) + <span class="string">&#x27;\n&#x27;</span>)</span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(<span class="built_in">len</span>(element_dic)):</span><br><span class="line">    current_value = element_dic[i + <span class="number">1</span>]</span><br><span class="line">    <span class="built_in">print</span>(current_value)</span><br><span class="line">    <span class="built_in">print</span>(<span class="built_in">type</span>(current_value))</span><br><span class="line">    vtk_file.write(<span class="string">&#x27;8 &#x27;</span>)</span><br><span class="line">    <span class="keyword">for</span> j <span class="keyword">in</span> <span class="built_in">range</span>(<span class="built_in">len</span>(current_value)):</span><br><span class="line">    vtk_file.write(<span class="built_in">str</span>(current_value[j]-<span class="number">1</span>)+<span class="string">&#x27; &#x27;</span>)</span><br><span class="line">    <span class="keyword">if</span> j == <span class="built_in">len</span>(current_value) - <span class="number">1</span>:</span><br><span class="line">    vtk_file.write(<span class="string">&#x27;\n&#x27;</span>)</span><br><span class="line"></span><br><span class="line">    vtk_file.write(<span class="string">&#x27;\n&#x27;</span>)</span><br><span class="line">    vtk_file.write(<span class="string">&#x27;CELL_TYPES &#x27;</span> + <span class="built_in">str</span>(<span class="built_in">len</span>(element_dic)) + <span class="string">&#x27;\n&#x27;</span>)</span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(<span class="built_in">len</span>(element_dic)):</span><br><span class="line">    	vtk_file.write(<span class="string">&#x27;12&#x27;</span> + <span class="string">&#x27;\n&#x27;</span>)</span><br></pre></td></tr></table></figure>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>Author: </span><span class="post-copyright-info"><a href="https://imxiaosun.com">John Doe</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>Link: </span><span class="post-copyright-info"><a href="https://imxiaosun.com/2025/01/13/VTK/Inp2VTK/">https://imxiaosun.com/2025/01/13/VTK/Inp2VTK/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>Copyright Notice: </span><span class="post-copyright-info">All articles on this blog are licensed under <a target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a> unless otherwise stated.</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/Python/">Python</a><a class="post-meta__tags" href="/tags/VTK/">VTK</a><a class="post-meta__tags" href="/tags/Abaqus/">Abaqus</a></div><div class="post-share"><div class="social-share" data-image="https://s2.loli.net/2022/01/22/XqdJmbz8e1IEOk9.png" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/2025/01/13/Python%E7%9B%B8%E5%85%B3/Python_transferparameters/" title="通过Python文件调用另一个Python文件，并传递参数"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info"><div class="info-1"><div class="info-item-1">Previous</div><div class="info-item-2">通过Python文件调用另一个Python文件，并传递参数</div></div><div class="info-2"><div class="info-item-1">实施方法在要调用的.py文件中导入sys。确定需要参数的数量和类型 12345import sys	paramA = sys.argv[1]paramB = sys.argv[2]paramC = sys.argv[3]paramD = sys.argv[4]  在另一个 .py 文件，通过os.system 调用之前的 .py 文件。这里的 file_path 是绝对路径，后面的参数都是字符串，所以用的是 %s。 12import osos.system(&quot;python &quot; + file_path + &quot; %s %s %s %s&quot; % (paramA, paramB, paramC, paramD))  </div></div></div></a><a class="pagination-related" href="/2025/01/13/VTK/VTK_conclusion/" title="VTK 技术总结（一）多边形创建"><img class="cover" src="https://s2.loli.net/2022/01/22/XqdJmbz8e1IEOk9.png" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">Next</div><div class="info-item-2">VTK 技术总结（一）多边形创建</div></div><div class="info-2"><div class="info-item-1">多边形创建传统VTK 文件包含五个部分：  文件版本和标识符。这一部分包含# vtk DataFileVersion x.x，除了版本号x.x之外，该行必须与显示的完全相同。  标题。标题由以行尾字符\n终止的字符组成。最大为256个字符，可用于描述数据并包括任何其它相关信息。  文件格式。文件格式描述文件的类型，可以是ASCII 或者二进制。在此行上，必须出现单个单词ASCII或者BINARY  数据集结构。几何部分描述了数据集的几何和拓扑。这部分以包含关键字DATASET 的行开头，后跟描述数据集类型的关键字。然后根据数据集的类型，其他关键字&#x2F;数据组合将定义实际数据。  数据集属性。以关键字POINT_DATA或CELL_DATA开头，后跟一个整数，分别指定点或单元的数量。（先出现POINT_DATA还是CELL_DATA都没关系）。然后，其他关键字&#x2F;数据组合定义实际的数据集属性值（即标量，向量，张量，法线，纹理坐标或字段数据）。   12345678910111213# vtk DataFile Version 1.0Vibrational modes...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>Related Articles</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/2025/01/13/VTK/VTK_conclusion/" title="VTK 技术总结（一）多边形创建"><img class="cover" src="https://s2.loli.net/2022/01/22/XqdJmbz8e1IEOk9.png" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-01-13</div><div class="info-item-2">VTK 技术总结（一）多边形创建</div></div><div class="info-2"><div class="info-item-1">多边形创建传统VTK 文件包含五个部分：  文件版本和标识符。这一部分包含# vtk DataFileVersion x.x，除了版本号x.x之外，该行必须与显示的完全相同。  标题。标题由以行尾字符\n终止的字符组成。最大为256个字符，可用于描述数据并包括任何其它相关信息。  文件格式。文件格式描述文件的类型，可以是ASCII 或者二进制。在此行上，必须出现单个单词ASCII或者BINARY  数据集结构。几何部分描述了数据集的几何和拓扑。这部分以包含关键字DATASET 的行开头，后跟描述数据集类型的关键字。然后根据数据集的类型，其他关键字&#x2F;数据组合将定义实际数据。  数据集属性。以关键字POINT_DATA或CELL_DATA开头，后跟一个整数，分别指定点或单元的数量。（先出现POINT_DATA还是CELL_DATA都没关系）。然后，其他关键字&#x2F;数据组合定义实际的数据集属性值（即标量，向量，张量，法线，纹理坐标或字段数据）。   12345678910111213# vtk DataFile Version 1.0Vibrational modes...</div></div></div></a><a class="pagination-related" href="/2025/01/13/VTK/VTK_conclusion_2/" title="VTK 技术总结（二）多边形 Outline 和 Feature Line 创建"><img class="cover" src="https://s2.loli.net/2022/01/23/Z3x6aXutrhCljWB.png" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-01-13</div><div class="info-item-2">VTK 技术总结（二）多边形 Outline 和 Feature Line 创建</div></div><div class="info-2"><div class="info-item-1">多边形Outline和 Feature Line 创建根据上一文章中，我们成功创建了一个正方形在创建的VTK视图中。但是在未来的计划中，我们还要想体现更为复杂的模型。而模型是由不同的点，线，面组成的。相比较ABAQUS中的Mesh来说，这些点线面（Feature）其实就是node, face element, body element。 那么如何在VTK的视图中展示这些特征呢？下面我们以一个简单的例子来说明： 12345678910111213141516171819202122232425262728293031# vtk DataFile Version 1.0Vibrational modes of plateASCIIDATASET POLYDATAPOINTS 12 float0.0 0.0 0.01.0 0.0 0.01.0 1.0 0.00.0 1.0 0.00.0 0.0 1.01.0 0.0 1.01.0 1.0 1.00.0 1.0 1.02.0 0.0 0.02.0 1.0 0.02.0 1.0 1.02.0 0.0 1.0POLYGONS 11 554...</div></div></div></a><a class="pagination-related" href="/2025/01/13/VTK/VTK_conclusion_3/" title="VTK 技术总结（三）显示unstructured grid 的网格线"><img class="cover" src="https://s2.loli.net/2022/01/24/DYZ2G3QUuOW4Hcx.png" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-01-13</div><div class="info-item-2">VTK 技术总结（三）显示unstructured grid 的网格线</div></div><div class="info-2"><div class="info-item-1">非结构化Grid 的网格线之前我们说过如何查看两个多面体内部的Feature Lines 和外部的 Outline。然而那种方法只适用于Polygonal data，对于Unstructure Grid 并不适用。所以如果我们想要将Unstructured Grid显示出来，那么就需要vtkGeometryFilter这个功能。详情请看下图：  Putanowicz and Magoules simplified the visualization process of unstructured grids with VTK [1]. The figure shown above clearly displayed how the outline grid can be presented by the VTK reader. 总体的实现过程可查看如下代码： 1234567891011121314151617181920212223242526272829def file_open(self, path):    vtkReader =...</div></div></div></a><a class="pagination-related" href="/2025/01/13/VTK/VTK_dataset/" title="VTK 技术总结 番外篇 （一）VTK文件格式以及数据集"><img class="cover" src="https://s2.loli.net/2022/01/23/UZSqC9birl4Lwht.png" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-01-13</div><div class="info-item-2">VTK 技术总结 番外篇 （一）VTK文件格式以及数据集</div></div><div class="info-2"><div class="info-item-1">文件格式文件内容简介第一行是数据版本声明，说明文件版本。 第二行是自己定义的一个标题，最多256个字符，以回车符\n结束。 第三行是文件格式生命，由两个选择，ACSII或者二进制BINARY。 123# vtk DataFile Version 1.0Model_1ASCII  之后就是最重要的数据集了。是以DATASET type 格式来体现的。其中type 可以是  STRUCTURED_POINTS STRUCTURED_GRID UNSTRUCTURED_GRID POLYDATA RECTILINEAR_GRID FIELD  如果使用UNSTRCTURED_GRID: ‘The unstructured grid dataset consists of arbitrary combinations of any possible cell type. Unstructured grids are defined by points, cells, and cell types. The CELLS keyword requires two parameters:...</div></div></div></a><a class="pagination-related" href="/2025/01/13/VTK/VTK_visualizationpipeline/" title="VTK 技术总结 番外篇 （二）VTK 视图化过程"><img class="cover" src="https://s2.loli.net/2022/01/24/9bn5LzU1iCfslJP.png" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-01-13</div><div class="info-item-2">VTK 技术总结 番外篇 （二）VTK 视图化过程</div></div><div class="info-2"><div class="info-item-1">Visualization pipeline这篇文章的大部分内容来自于：http://www.cb.uu.se/~aht/Vis2014/lecture2.pdf 。作者是Johan Nysjö。 VTK视图化的过程可以体现在Figure 1.  其中source 是来源于 VTK 内部的模型，包含了一些简单的正方体，棱柱，圆等等。Reader主要是用来读取外部文件的模型信息。 Filter 的主要作用是传递和修改输入的信息。它可以被用来：  Select data of a particular size, strength, intensity, etc. Process 2D&#x2F;3D images or polygon meshes&#x2F; Generate geometric objects from data.  Mapper 是用来将数据投影到图形基元（点线面）以至于这些数据可以被renderer呈现出来。更多情况下，我们使用的是vtkPolyDataMapper。 Actors...</div></div></div></a><a class="pagination-related" href="/2025/01/13/Solidworks_Python/" title="使用Python+SolidWorks自动化创建复合材料元胞 （一）"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2025-01-13</div><div class="info-item-2">使用Python+SolidWorks自动化创建复合材料元胞 （一）</div></div><div class="info-2"><div class="info-item-1">复合材料元胞复合材料元胞（Unit Cell）是复合材料层合板中的代表性单元，其在层合板中具有周期性，也被称为Representative Unit Cell (RUC)。RUC 是中尺度模型（Mesoscale model），同时也有RVE（Representative Volume Element），是微尺度模型（Microscale level）。Unit cell （UC）经常被用来代替整个复合材料平板模拟复合材料在不同工况下的力学性能。因此能够准确建立元胞模型并用于ABAQUS等有限元的模拟中，就显得尤为重要。 但是通常通过CAD软件，如SolidWorks （SW），建立复合材料元胞是一个复杂且费时的过程。我们不仅需要了解编织复合材料预制件的各种制造参数，而且还需要通过3D绘图软件成功建立出不同样式的元胞。这样就会造成大量的时间和经历的浪费。  现在已经有很多的开源软件可以用来制造中尺度的元胞模型，如诺丁汉大学的开业软件：TexGen （中尺度模型的建立），Prof Shuguang Li，Laurent Jeanmeure 和 Qing...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">John Doe</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">Articles</div><div class="length-num">25</div></a><a href="/tags/"><div class="headline">Tags</div><div class="length-num">27</div></a><a href="/categories/"><div class="headline">Categories</div><div class="length-num">11</div></a></div><a id="card-info-btn" target="_blank" rel="noopener" href="https://github.com/xxxxxx"><i class="fab fa-github"></i><span>Follow Me</span></a></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>Announcement</span></div><div class="announcement_content">This is my Blog</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>Contents</span><span class="toc-percentage"></span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#INP%E5%92%8CVTK-%E6%96%87%E4%BB%B6"><span class="toc-number">1.</span> <span class="toc-text">INP和VTK 文件</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#INP-%E6%96%87%E4%BB%B6%E6%A0%BC%E5%BC%8F"><span class="toc-number">1.1.</span> <span class="toc-text">INP 文件格式</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#INP2VTK"><span class="toc-number">2.</span> <span class="toc-text">INP2VTK</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%BB%A3%E7%A0%81"><span class="toc-number">2.1.</span> <span class="toc-text">代码</span></a></li></ol></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>Recent Posts</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/2025/01/13/Typora_usage/" title="Typora 使用指南"><img src="https://s2.loli.net/2022/01/17/QXhOxsLqYFBtg9n.png" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Typora 使用指南"/></a><div class="content"><a class="title" href="/2025/01/13/Typora_usage/" title="Typora 使用指南">Typora 使用指南</a><time datetime="2025-01-13T10:19:58.179Z" title="Created 2025-01-13 10:19:58">2025-01-13</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2025/01/13/Solidworks_VBA/" title="SolidWokrs VBA 技术总结">SolidWokrs VBA 技术总结</a><time datetime="2025-01-13T10:19:58.176Z" title="Created 2025-01-13 10:19:58">2025-01-13</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2025/01/13/Solidworks_Python/" title="使用Python+SolidWorks自动化创建复合材料元胞 （一）">使用Python+SolidWorks自动化创建复合材料元胞 （一）</a><time datetime="2025-01-13T10:19:58.174Z" title="Created 2025-01-13 10:19:58">2025-01-13</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2025/01/13/RVE_Generator/" title="通过Python生成随机纤维 RVE 模型并导入到ABAQUS中进行分析"><img src="https://s2.loli.net/2022/01/21/UEb4taYXzCosH68.png" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="通过Python生成随机纤维 RVE 模型并导入到ABAQUS中进行分析"/></a><div class="content"><a class="title" href="/2025/01/13/RVE_Generator/" title="通过Python生成随机纤维 RVE 模型并导入到ABAQUS中进行分析">通过Python生成随机纤维 RVE 模型并导入到ABAQUS中进行分析</a><time datetime="2025-01-13T10:19:58.172Z" title="Created 2025-01-13 10:19:58">2025-01-13</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2025/01/13/PBCs/" title="Periodic Boundary Condition (PBC) 及其 ABAQUS 实现"><img src="https://s2.loli.net/2022/01/21/voIM8HbsiGRFYSk.png" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Periodic Boundary Condition (PBC) 及其 ABAQUS 实现"/></a><div class="content"><a class="title" href="/2025/01/13/PBCs/" title="Periodic Boundary Condition (PBC) 及其 ABAQUS 实现">Periodic Boundary Condition (PBC) 及其 ABAQUS 实现</a><time datetime="2025-01-13T10:19:58.171Z" title="Created 2025-01-13 10:19:58">2025-01-13</time></div></div></div></div></div></div></main><footer id="footer"><div id="footer-wrap"><div class="copyright">&copy;2019 - 2025 By John Doe</div><div class="framework-info"><span>Framework </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>Theme </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="Reading Mode"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="Toggle Between Light and Dark Mode"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="Toggle Between Single-column and Double-column"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="Settings"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="Table of Contents"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="Back to Top"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js"></script><script src="/js/main.js"></script><div class="js-pjax"></div><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script></div></body></html>
